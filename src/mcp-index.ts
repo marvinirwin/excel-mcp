@@ -11,6 +11,24 @@ import {
 import XLSX from 'xlsx';
 import fs from 'fs';
 
+// Define interfaces for spreadsheet data
+interface SpreadsheetRow {
+  [key: string]: any;
+}
+
+interface FilterResult {
+  matchingRows: SpreadsheetRow[];
+  count: number;
+  sum?: number;
+  sumColumn?: string;
+}
+
+interface WorkbookType {
+  SheetNames: string[];
+  Sheets: {
+    [sheetName: string]: XLSX.WorkSheet;
+  };
+}
 
 const server = new Server(
   {
@@ -32,7 +50,7 @@ if (!fs.existsSync(spreadsheetPath)) {
 }
 
 // Load workbook
-let workbook;
+let workbook: WorkbookType;
 try {
   workbook = XLSX.readFile(spreadsheetPath);
 } catch (error) {
@@ -62,21 +80,21 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     throw new Error("Invalid resource URI");
   }
   
-  if (!workbook.SheetNames.includes(sheetName)) {
+  if (!sheetName || !workbook.SheetNames.includes(sheetName)) {
     throw new Error(`Sheet not found: ${sheetName}`);
   }
   
   const worksheet = workbook.Sheets[sheetName];
   const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
   
-  const headers = [];
+  const headers: string[] = [];
   const firstRow = range.s.r;
   const lastRow = range.e.r;
   
   for (let c = range.s.c; c <= range.e.c; c++) {
     const cellAddress = XLSX.utils.encode_cell({ r: firstRow, c });
     const cellValue = worksheet[cellAddress]?.v || '';
-    headers.push(cellValue);
+    headers.push(String(cellValue));
   }
   
   const schemaInfo = headers.map((header, index) => {
@@ -208,7 +226,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    const jsonData = XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet);
     
     const limitedData = jsonData.slice(0, Math.min(limit, 50));
     
@@ -217,10 +235,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: false,
     };
   } else if (request.params.name === "customFilterSheet") {
-    interface SpreadsheetRow {
-      [key: string]: any;
-    }
-    
     const { sheetName, filterCode, sumColumn, limit = 50 } = request.params.arguments as { 
       sheetName: string, 
       filterCode: string,
@@ -233,7 +247,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet) as SpreadsheetRow[];
+    const jsonData = XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet);
     
     // Helper function for working with Excel dates
     const getDateFromExcel = (excelDate: number): Date | null => {
@@ -260,14 +274,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       // Apply limit if needed
       const limitedFilteredData = filteredData.slice(0, Math.min(limit, 50));
-      
-      // Calculate sum if requested
-      interface FilterResult {
-        matchingRows: SpreadsheetRow[];
-        count: number;
-        sum?: number;
-        sumColumn?: string;
-      }
       
       let result: FilterResult = {
         matchingRows: limitedFilteredData,
@@ -312,7 +318,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    const jsonData = XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet);
     
     if (jsonData.length === 0) {
       return {
@@ -357,7 +363,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    const jsonData = XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet);
     
     return {
       content: [{ type: "text", text: JSON.stringify({ rowCount: jsonData.length }, null, 2) }],
@@ -371,7 +377,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
+    const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet);
     
     // Check if column exists
     if (jsonData.length > 0 && !jsonData.some(row => columnName in row)) {
@@ -406,10 +412,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: false,
     };
   } else if (request.params.name === "reduceColumn") {
-    interface SpreadsheetRow {
-      [key: string]: any;
-    }
-    
     const { sheetName, groupByColumn, reduceCode, initialValue } = request.params.arguments as { 
       sheetName: string, 
       groupByColumn: string,
@@ -422,7 +424,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet) as SpreadsheetRow[];
+    const jsonData = XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet);
     
     // Check if column exists
     if (jsonData.length > 0 && !jsonData.some(row => groupByColumn in row)) {

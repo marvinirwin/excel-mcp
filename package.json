@@ -5,8 +5,7 @@
     "license": "MIT",
     "type": "module",
     "bin": {
-      "spreadsheet-mcp": "dist/mcp-index.js",
-
+      "spreadsheet-mcp": "dist/mcp-index.js"
     },
     "files": [
       "dist"
