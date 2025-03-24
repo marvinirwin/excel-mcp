@@ -1,0 +1,28 @@
+{
+    "name": "spreadsheet-mcp",
+    "version": "0.1.0",
+    "description": "MCP server for interacting with spreadsheets",
+    "license": "MIT",
+    "type": "module",
+    "bin": {
+      "spreadsheet-mcp": "dist/mcp-index.js",
+
+    },
+    "files": [
+      "dist"
+    ],
+    "scripts": {
+      "build": "tsc && shx chmod +x dist/*.js",
+      "prepare": "npm run build",
+      "watch": "tsc --watch"
+    },
+    "dependencies": {
+      "@modelcontextprotocol/sdk": "1.0.1",
+      "xlsx": "^0.18.5"
+    },
+    "devDependencies": {
+      "shx": "^0.3.4",
+      "typescript": "^5.6.2",
+      "@types/node": "^20.11.17"
+    }
+  }
